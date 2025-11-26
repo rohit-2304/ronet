@@ -167,7 +167,88 @@ class CrossEntropyLoss(Loss):
 
         # normalization of gradients
         self.dinputs = self.dinputs/samples
-  
+
+# Softmax classifier - combined Softmax activation
+# and cross-entropy loss for faster backward step
+# no jacobian calculation involved
+class Activation_Softmax_Loss_Cross_Entropy:
+    def __init__(self):
+        self.activation = Softmax()
+        self.loss = CrossEntropyLoss()
+    
+    def forward(self, inputs, y_true):
+        self.activation.forward(inputs)
+        self.output = self.activation.output
+
+        return self.loss.forward(self.output, y_true)
+    
+    def backward(self, dvalues, y_true):
+        """Derivation of combined Softmax + Cross-Entropy gradient:
+
+        1. Softmax converts logits z_j into probabilities p_j.
+            p_j = e^(z_j) / sum(e^(z_k))
+
+        2. Cross-entropy loss for one-hot labels:
+            L = -log(p_c)      (c = correct class)
+
+        3. We want dL/dz_j (gradient of loss wrt logits).
+
+        4. Use the chain rule:
+            dL/dz_j = sum_i( dL/dp_i * dp_i/dz_j )
+
+        5. Derivative of cross-entropy wrt softmax output:
+            dL/dp_i = -y_i / p_i
+            (non-zero only for the correct class because y is one-hot)
+
+        6. Derivative of softmax wrt logits:
+            if i == j: dp_i/dz_j = p_i * (1 - p_i)
+            else:      dp_i/dz_j = -p_i * p_j
+
+        7. Multiply them using the chain rule: the complicated terms cancel out.
+
+        8. After simplification the entire derivative collapses to:
+            dL/dz_j = p_j - y_j
+
+        9. Meaning:
+            - correct class:  p_j - 1
+            - other classes:  p_j - 0
+
+        10. This is why the combined backward pass can simply do:
+                dinputs = softmax_output
+                dinputs[range(samples), true_class] -= 1
+                dinputs /= samples
+            which implements: (p - y) / batch_size  """
+
+        # in the combined backward pass:
+        # dvalues = softmax output (p_j)  -> NOT upstream gradients
+        # because the loss layer starts backprop, so it receives the model's predictions
+        
+        samples = len(dvalues)  # number of samples m
+        # dvalues shape = (m, n_classes)
+
+        # if true labels are one-hot encoded convert them to sparse labels
+        # because we only need the index where y_j = 1
+        # and subtracting 1 at that index will give (p_j - y_j)
+        if len(y_true.shape) == 2:
+            y_true = np.argmax(y_true, axis=1)  
+            # y_true now shape = (m, ), each entry is correct class index
+
+        # make a copy so we don't modify original softmax output
+        # starting gradient = p_j
+        # final gradient = p_j - y_j
+        self.dinputs = dvalues.copy()
+
+        # subtract 1 from the softmax output at the correct class index
+        # this performs: p_j - 1  for the correct class
+        #                p_j - 0  for other classes
+        # since y_j (one-hot) = 1 only at the correct class
+        # this exactly implements the derived formula:
+        #   dL/dz_j = p_j - y_j
+        self.dinputs[range(samples), y_true] -= 1
+
+        # normalization
+        self.dinputs = self.dinputs / samples
+
 
 # regularization
 class Dropout:
