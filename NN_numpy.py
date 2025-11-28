@@ -138,8 +138,8 @@ class CrossEntropyLoss(Loss):
     def forward(self, y_pred, y_true):
         samples = len(y_pred)
 
-        # to prevent division by zero(log(0))
-        clipped_output = np.clip(y_pred, 1e-07, 1-1e-07)
+        # to prevent division by zero(log(0))   
+        clipped_output = np.clip(y_pred, 1e-07, 1-1e-07)    # 1-1e-07 becuase if there is some epsilon addition the log(x > 1) will be negative instead of 0
 
         # Probablities for target values -
         # only if categorical labels    i.e true class index for each sample
@@ -249,6 +249,14 @@ class Activation_Softmax_Loss_Cross_Entropy:
         # normalization
         self.dinputs = self.dinputs / samples
 
+# optimizers
+class Optimizer_SGD:
+    def __init__(self, learning_rate = 0.001):
+        self.learning_rate = learning_rate
+    
+    def update_params(self, layer):
+        layer.weights += -self.learning_rate * layer.dweights
+        layer.biases += -self.learning_rate * layer.dbiases
 
 # regularization
 class Dropout:
