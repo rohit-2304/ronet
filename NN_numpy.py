@@ -251,13 +251,72 @@ class Activation_Softmax_Loss_Cross_Entropy:
 
 # optimizers
 class Optimizer_SGD:
-    def __init__(self, learning_rate = 0.001):
+    def __init__(self, learning_rate = 0.001, decay = 0.001, momentum = 0., epsion = 1e-7):
         self.learning_rate = learning_rate
+        self.current_learning_rate = learning_rate
+        self.decay = decay
+        self.steps = 0      # how many steps have taken place so far
+        self.momentum = momentum
+
+    # implement a wrapper here if decay
+    def pre_update_params(self):
+        if self.decay:
+            self.current_learning_rate = self.learning_rate * (1. / (1. + self.decay * self.steps))
     
     def update_params(self, layer):
-        layer.weights += -self.learning_rate * layer.dweights
-        layer.biases += -self.learning_rate * layer.dbiases
 
+        # if momentum is used
+        if self.momentum:
+            
+            if not hasattr(layer, 'weight_momentums'):
+                layer.weight_momentums = np.zeros_like(layer.weights)
+                layer.bias_momentums = np.zeros_like(layer.biases)
+                            # fraction from previous updates
+            weight_updates = (self.momentum*layer.weight_momentums) - (self.current_learning_rate*layer.dweights)   # everything is a vector here
+            layer.weight_momentums = weight_updates
+
+            bias_updates = (self.momentum*layer.bias_momentums) - (self.current_learning_rate*layer.dbiases)   # everything is a vector here
+            layer.bias_momentums = bias_updates
+        # vanilla sgd
+        else:
+            weight_updates = -self.learning_rate * layer.dweights
+            bias_updates = -self.learning_rate * layer.dbiases
+
+        layer.weights += weight_updates
+        layer.biases += bias_updates
+    
+    def post_update_params(self):
+        self.steps += 1
+
+class Optimizer_Adagrad:
+    """Adagrad optimizer with learning rate decay support"""
+    def __init__(self, learning_rate = 1e-3, decay=0., epsilon = 1e-7):
+        self.learning_rate = learning_rate
+        self.current_learning_rate = learning_rate
+        self.decay = decay
+        self.steps= 0
+        self.epsilon = epsilon
+
+    def pre_update_params(self):
+        if self.decay:
+            self.current_learning_rate = self.learning_rate*(1/ 1 + self.steps*self.decay)
+        
+    def update_params(self, layer):
+        # the layer wont have a cache to begin with
+        if not hasattr(layer, 'weight_cache'):
+            layer.weight_cache = np.zeros_like(layer.weights)
+            layer.bias_cache = np.zeros_like(layer.biases)
+        
+        # update cache with current squared gradients
+        layer.weight_cache += layer.dweights**2
+        layer.bias_cach += layer.dbiases**2
+
+        layer.weights += -(self.learning_rate * layer.dweights)/(np.sqrt(layer.weight_cache + self.epsilon))
+        layer.biases += -(self.learning_rate * layer.dbiases)/(np.sqrt(layer.bias_cache + self.epsilon))
+
+    def post_udpate_params(self):
+        self.steps += 1
+        
 # regularization
 class Dropout:
     pass
