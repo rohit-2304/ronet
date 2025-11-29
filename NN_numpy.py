@@ -2,9 +2,13 @@ import numpy as np
 
 # dense layer
 class Dense:
-    def __init__(self, n_in, n_neurons):
+    def __init__(self, n_in, n_neurons, weight_regularizer_l1=0, bias_regularizer_l1=0, weight_regularizer_l2=0, bias_regularizer_l2=0):
         self.weights = 0.01 * np.random.randn(n_in , n_neurons)   # w^T shape
         self.baises = np.zeros((1, n_neurons))                   # b^T shape
+        self.weight_regularizer_l1 = weight_regularizer_l1
+        self.bias_regularizer_l1 = bias_regularizer_l1
+        self.weight_regularizer_l2 = weight_regularizer_l2
+        self.bias_regularizer_l2 = bias_regularizer_l2
 
     def __call__(self, inputs):
         self.output = np.dot(inputs, self.weights) + self.baises
@@ -24,6 +28,26 @@ class Dense:
         # self.weights.T shape = (self.n_neurons, self.n_in)
         # dinputs shape = (m, self.n_in)    [n_in are the n_neurons for prev layer]
         self.dinputs = np.dot(prev_grads, self.weights.T)   # required to propogate gradients
+
+
+        # if l1 regularization used
+        if self.weight_regularizer_l1 > 0:
+            l1_dweights = np.ones_like(self.weights)
+            l1_dweights[self.weights < 0] = -1
+            self.dweights += self.weight_regularizer_l1 * l1_dweights
+
+        if self.bias_regularizer_l1 > 0:
+            l1_dbias = np.ones_like(self.biases)
+            l1_dbias[self.biases < 0] = -1
+            self.dbiases += self.bias_regularizer_l1 * l1_dbias
+
+        if self.weight_regularizer_l2 > 0:
+            self.dweights += 2 * self.weight_regularizer_l2 * self.weights
+
+        if self.bias_regularizer_l2 > 0:
+            l1_dbias = np.ones_like(self.biases)
+            l1_dbias[self.biases < 0] = -1
+            self.dbiases += 2 * self.bias_regularizer_l2 * self.biases
 
     def __repr__(self):
         return f"Dense Layer ({self.weights.shape[0]} -> {self.weights.shape[1]})"
@@ -131,6 +155,24 @@ class Loss:
         sample_losses = self.forward(output, y)
         data_loss = np.mean(sample_losses)
         return data_loss
+    
+    def regularization_loss(self, layer):
+        # total data_loss = regularization_loss(layer1) + regularization_loss(layer2) + ..... n
+    
+        regularization_loss = 0
+        # if l1 regularization used
+        if layer.weight_regularizer_l1 > 0:
+            regularization_loss += layer.weight_regularization_l1 * np.sum(np.abs(layer.weights))
+        if layer.bias_regularizer_l1 > 0:
+            regularization_loss += layer.bias_regularization_l1 * np.sum(np.abs(layer.biases))
+
+        # if l2_regularization used
+        if layer.weight_regularizer_l2 > 0:
+            regularization_loss += layer.weight_regularization_l2 * np.sum(layer.weights * layer.weights)
+        if layer.bias_regularizer_l2 > 0:
+            regularization_loss += layer.bias_regularization_l2 * np.sum(layer.biases * layer.biases)
+        
+        return regularization_loss
 
 class CrossEntropyLoss(Loss):
     def forward(self, y_pred, y_true):
@@ -386,6 +428,7 @@ class Optimizer_Adam(Optimizer):
         layer.bias_momentums = (self.beta_1*layer.bias_momentums) + ((1-self.beta_1)*layer.dbiases)
 
         # adujst for early small values
+        # adaptive momentums - early the momentum will be greater
         weight_momentums_corrected = layer.weight_momentums/(1 - self.beta_1**(self.steps + 1) )# + 1 to avoid div by zero
         bias_momentums_corrected = layer.bias_momentums/(1 - self.beta_1**(self.steps +1))
 
@@ -404,6 +447,9 @@ class Optimizer_Adam(Optimizer):
         self.steps += 1
         
 # regularization
+
+
+
 class Dropout:
     pass
 
