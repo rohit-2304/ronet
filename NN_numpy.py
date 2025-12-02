@@ -278,12 +278,6 @@ class Activation_Softmax_Loss_Cross_Entropy:
         # final gradient = p_j - y_j
         self.dinputs = dvalues.copy()
 
-        # subtract 1 from the softmax output at the correct class index
-        # this performs: p_j - 1  for the correct class
-        #                p_j - 0  for other classes
-        # since y_j (one-hot) = 1 only at the correct class
-        # this exactly implements the derived formula:
-        #   dL/dz_j = p_j - y_j
         self.dinputs[range(samples), y_true] -= 1
 
         # normalization
@@ -447,11 +441,55 @@ class Optimizer_Adam(Optimizer):
         self.steps += 1
         
 # regularization
-
-
-
+# l1 and l2 regularization already added in dense layer and loss function
 class Dropout:
-    pass
+    def __init__(self, dropout_rate):
+        self.dropout_rate = 1 - dropout_rate    # stored as inverted rate (ratio of neurons to keep)
+    
+    def forward(self, inputs):
+        self.inputs = inputs
+        self.binary_mask = np.random.binomial(1, self.dropout_rate, inputs.shape)/self.dropout_rate * self.inputs
+        self.output = self.inputs * self.binary_mask
+
+    def backward(self, prev_grads):
+        self.dinputs = prev_grads  * self.binary_mask
 
 class BatchNorm:
-    pass
+    # normalizes data to 0 mean and unit std deviation
+    # adds regulariztion
+    # allows for more aggresive learning rates
+    def __init__(self, epsilon = 1e-07, ):
+        self.epsilon = epsilon
+        self.gamma = None       # scaling parameter learnable parameter
+        self.beta = None        # shift parameter   both of them neccessary to regain the lost dimensions
+    
+    def forward(self, inputs):
+        if self.gamma is None:
+            _, features = inputs.shape
+            self.gamma = np.ones((1, features))
+            self.beta  = np.zeros((1, features))
+
+        self.inputs = inputs
+        self.samples = len(input)
+
+        self.mean = np.sum(inputs, axis=0,keepdims=True) / self.samples                     # shape( 1,  n_neurons)
+        self.var = np.sum((inputs - self.mean)**2, axis=0,keepdims=True)/ self.samples      # shape (1, n_neurons)
+
+        self.x_mu = inputs - self.mean                              # shape (m, n_neurons)
+        self.std_inv = 1.0 / np.sqrt(self.var + self.epsilon)       # shape(1, n_neurons)
+        self.x_hat = self.x_mu * self.std_inv                       # shape (m, n_neurons)      broadcasting done
+
+        self.output = self.gamma * self.x_hat + self.beta   # shape (m, n_neurons)
+        return self.output
+
+    def backward(self, prev_grads):
+        self.dgamma = np.sum(self.x_hat * prev_grads, axis = 0, keepdims = True)    #shape (1, n_neurons)
+        self.dbeta  = np.sum(prev_grads, axis=0, keepdims=True)                     #shape (1, n_neurons)
+
+        self.dx_hat = self.gamma * prev_grads   
+
+        self.dvar = np.sum(self.dx_hat * self.x_mu* -0.5 * self.std_inv**3, axis=0, keepdims=True)
+
+        self.dmu = np.sum(self.dx_hat * -self.std_inv, axis=0, keepdims=True) + self.dvar * np.mean(-2.0 * self.x_mu, axis=0, keepdims=True)
+
+        self.dinputs = self.dx_hat * self.std_inv + self.dvar * 2 * self.x_mu/self.mean + self.dmu/self.mean

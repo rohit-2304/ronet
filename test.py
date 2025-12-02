@@ -237,13 +237,14 @@ if __name__ == "__main__":
     # test10()
     # test11()
     
-    drelu = np.zeros((3,3))
-    drelu[[0,1,2],[2,0,1]] = 1
-    print(drelu)
+    inputs = np.random.rand(50,12)
+    print(inputs.shape)
+    samples = len(inputs)
 
-    da = np.random.rand(3,3)
-    print(da)
-
-    drelu_fin = np.dot(drelu, da)
-    print(drelu_fin)
+    mean = np.sum(inputs, axis=0,keepdims=True) / samples
+    print(mean.shape)
+    out = inputs - mean
+    print(out.shape)
+    out = (inputs - mean)**2
+    print(out.shape)
     #test12()
