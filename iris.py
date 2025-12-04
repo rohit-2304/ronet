@@ -62,3 +62,6 @@ for epoch in range(epochs):
     optimizer.step()
 
     print(f"Epoch {epoch+1}/{epochs}, Loss = {loss.item():.6f}")
+    
+ def temp():
+    pass
