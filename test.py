@@ -2,6 +2,10 @@ from NN import Variable
 from NN import MLP
 import numpy as np
 import matplotlib.pyplot as plt
+from torch import nn
+import torch
+import torch.optim as optim
+from NN_numpy import *
 
 def test1():        # object creation
     print("\n test 1 ")
@@ -238,13 +242,53 @@ if __name__ == "__main__":
     # test11()
     
     inputs = np.random.rand(50,12)
-    print(inputs.shape)
-    samples = len(inputs)
+    print(f"Input shape : {inputs.shape}")
+    outputs = 2*np.sum(inputs, axis = 1)
+    print(f"Output shape : {outputs.shape}")
 
-    mean = np.sum(inputs, axis=0,keepdims=True) / samples
-    print(mean.shape)
-    out = inputs - mean
-    print(out.shape)
-    out = (inputs - mean)**2
-    print(out.shape)
+    model = Model()
+    model.add(Dense(12, 24))
+    model.add(ReLU())
+    model.add(Dense(24,32))
+    model.add(ReLU())
+    model.add(Dense(32, 16))
+    model.add(ReLU())
+    model.add(Dense(16, 1))
+
+    model.set(loss=MeanSquaredErrorLoss(), optimizer=Optimizer_Adam(learning_rate=0.001))
+
+    model.finalize()
+
+    model.train(inputs, outputs, epochs=10)
+
+    print("\n\n\tpytorch\n\n")
+    model = nn.Sequential(
+        nn.Linear(12, 24),
+        nn.ReLU(),
+        nn.Linear(24, 32),
+        nn.ReLU(),
+        nn.Linear(32, 16),
+        nn.ReLU(),
+        nn.Linear(16, 1)
+    )
+
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    inputs_torch = torch.from_numpy(inputs).float()
+    outputs_torch = torch.from_numpy(outputs).float()
+
+    epochs = 10
+
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+
+        predictions = model(inputs_torch)    # forward pass
+        loss = criterion(predictions, outputs_torch)
+
+        loss.backward()
+        optimizer.step()
+
+        print(f"Epoch {epoch+1}/{epochs}, Loss = {loss.item():.6f}")
+
     #test12()
