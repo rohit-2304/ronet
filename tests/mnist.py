@@ -42,4 +42,4 @@ model.set(loss=CrossEntropyLoss(), optimizer= Optimizer_Adam(learning_rate=0.001
 
 model.finalize()
 
-model.train(X_train, y_train, batch_size=512, epochs=50, print_every= 512)
+model.train(X_train, y_train, batch_size=512, epochs=50,validation_data=(X_val, y_val,))

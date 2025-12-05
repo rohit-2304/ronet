@@ -222,9 +222,10 @@ class Model:
                     batch_X = X[step*batch_size: (step + 1)*batch_size]
                     batch_y = y[step*batch_size: (step + 1)*batch_size]
 
-                output = self.forward(batch_X)
+                output = self.forward(batch_X, training=True)
                 data_loss, regularization_loss = self.loss.calculate(output, batch_y, include_regularization = True)
-
+                predictions = self.output_layer_activation.predict(output)
+                accuracy = self.accuracy.calculate(predictions, batch_y)
                 self.backward(output, batch_y)
                 
                 self.optimizer.pre_update_params()
