@@ -1,7 +1,8 @@
 # Ronet: A NumPy-only Deep Learning Framework
-pypi : https://pypi.org/project/ronet/
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/release/python-360/)
+pypi : https://pypi.org/project/ronet/
 
 **Ronet** is a lightweight, modular deep learning library built entirely from scratch using only `numpy`. 
 
